@@ -250,6 +250,13 @@ class Player:
         Geeft de colom nummer van de beste move die gemaakt kan worden volgens 
         de colom score en de player triebreak methode
         """
+
+        max_indices = []
+        ms = max(scores)
+        for i, x in enumerate(scores):
+            if x == ms:
+                max_indices.append(i)
+
         if self.tbt == 'LEFT':
             for i in range(len(scores)):
                 if scores[i] == max(scores):
@@ -260,62 +267,39 @@ class Player:
                 if scores[i] == max(scores):
                     return i
                 i -= 1
-        else:
-            return scores.index(max(scores))
+        return scores.index(max(scores))
 
     def scores_for(self, b):
         """
+        Kijkt naar een bord om vervolgens te kijken wat de beste zet 
+        is voor spelen met de regels die speler gekregen heeft.
         """
         scores = [50.0]*b.width
         for col in range(b.width):
             if not b.allows_move(col):
                 scores[col] = -1.0
-            elif b.wins_for('X') or b.wins_for('O'):
-                scores[col] = self.score_board(b)
+            elif b.wins_for(self.ox):
+                scores[col] = 100
+            elif b.wins_for(self.opp_ch()):
+                scores[col] = 0
             elif self.ply == 0:
-                scores[col] = 50.0
+                scores[col] = 50
             else:
                 b.add_move(col, self.ox)
-                yes = Player(self.opp_ch(), self.tbt, self.ply-1)
-                yesScores = yes.scores_for(b)
-                scores[col] = 100.0-max(yesScores)
-                b.del_move(col, self)
-            return scores
+                other_player = Player(
+                    self.opp_ch(), self.tbt, self.ply-1)
+                other_scores = other_player.scores_for(b)
+                if max(other_scores) == 0.0:
+                    scores[col] = 100
+                elif max(other_scores) == 100.0:
+                    scores[col] = 0.0
+                elif max(other_scores) == 50.0:
+                    scores[col] = 50.0
+                b.del_move(col)
+        return scores
 
     def next_move(self, b):
         """Returns next move with the given board"""
         return self.tiebreak_move(self.scores_for(b))
 
 
-b = Board(7, 6)
-b.set_board('1211244445')
-print(b)
-
-# 0-ply lookahead ziet geen bedreigingen
-assert Player('X', 'LEFT', 0).scores_for(b) == [
-    50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0]
-
-# 1-play lookahead ziet een manier om te winnen
-# (als het de beurt van 'O' was!)
-assert Player('O', 'LEFT', 1).scores_for(b) == [
-    50.0, 50.0, 50.0, 100.0, 50.0, 50.0, 50.0]
-
-# 2-ply lookahead ziet manieren om te verliezen
-# ('X' kan maar beter in kolom 3 spelen...)
-assert Player('X', 'LEFT', 2).scores_for(b) == [
-    0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0]
-
-# 3-ply lookahead ziet indirecte overwinningen
-# ('X' ziet dat kolom 3 een overwinning oplevert!)
-assert Player('X', 'LEFT', 3).scores_for(b) == [
-    0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0]
-
-# Bij 3-ply ziet 'O' nog geen gevaar
-# als hij in een andere kolom speelt
-assert Player('O', 'LEFT', 3).scores_for(b) == [
-    50.0, 50.0, 50.0, 100.0, 50.0, 50.0, 50.0]
-
-# Maar bij 4-ply ziet 'O' wel het gevaar!
-# weer jammer dat het niet de beurt van 'O' is...
-assert Player('O', 'LEFT', 4).scores_for(b) == [
-    0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0]
