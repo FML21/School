@@ -237,10 +237,9 @@ class Player:
         """
         if b.wins_for(self.ox):
             return 100.0
-        elif b.wins_for(self.opp_ch()):
+        if b.wins_for(self.opp_ch()):
             return 0.0
-        else:
-            return 50.0
+        return 50.0
 
     def tiebreak_move(self, scores):
         """
