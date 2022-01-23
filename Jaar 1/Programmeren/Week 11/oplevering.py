@@ -242,12 +242,59 @@ class Player:
         else:
             return 50.0
 
+    def tiebreak_move(self, scores):
+        """
+        Geeft de colom nummer van de beste move die gemaakt kan worden volgens 
+        de colom score en de player triebreak methode
+        """
 
-p = Player('X', 'LEFT', 3)
-assert p.opp_ch() == 'O'
-assert Player('O', 'LEFT', 0).opp_ch() == 'X'
+        max_indices = []
+        ms = max(scores)
+        for i, x in enumerate(scores):
+            if x == ms:
+                max_indices.append(i)
 
-p = Player('X', 'LEFT', 0)
-assert p.score_board(b) == 100.0
-assert Player('O', 'LEFT', 0).score_board(b) == 0.0
-assert Player('O', 'LEFT', 0).score_board(Board(7, 6)) == 50.0
+        if self.tbt == 'LEFT':
+            for i in range(len(scores)):
+                if scores[i] == max(scores):
+                    return i
+        elif self.tbt == 'RIGHT':
+            i = len(scores)-1
+            while i >= 0:
+                if scores[i] == max(scores):
+                    return i
+                i -= 1
+        return scores.index(max(scores))
+
+    def scores_for(self, b):
+        """
+        Kijkt naar een bord om vervolgens te kijken wat de beste zet 
+        is voor spelen met de regels die speler gekregen heeft.
+        """
+        scores = [50.0]*b.width
+        for col in range(b.width):
+            if not b.allows_move(col):
+                scores[col] = -1.0
+            elif b.wins_for(self.ox):
+                scores[col] = 100
+            elif b.wins_for(self.opp_ch()):
+                scores[col] = 0
+            elif self.ply == 0:
+                scores[col] = 50
+            else:
+                b.add_move(col, self.ox)
+                other_player = Player(
+                    self.opp_ch(), self.tbt, self.ply-1)
+                other_scores = other_player.scores_for(b)
+                if max(other_scores) == 0.0:
+                    scores[col] = 100
+                elif max(other_scores) == 100.0:
+                    scores[col] = 0.0
+                elif max(other_scores) == 50.0:
+                    scores[col] = 50.0
+                b.del_move(col)
+        return scores
+
+    def next_move(self, b):
+        """Returns next move with the given board"""
+        return self.tiebreak_move(self.scores_for(b))
